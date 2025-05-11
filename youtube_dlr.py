@@ -41,6 +41,7 @@ def main():
         progress_bar = st.progress(0)
 
         # Настройки yt-dlp
+        video_filename = None
         ydl_opts = {
             'outtmpl': f'{save_path}/%(title)s.%(ext)s',
             'format': 'bestvideo[height<=1080]+bestaudio/best',
@@ -56,10 +57,25 @@ def main():
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 st.info("Начинается загрузка...")
-                ydl.download([video_url])
-                st.success(f"Видео успешно скачано в папку: {save_path}")
+                info_dict = ydl.extract_info(video_url, download=True)
+                video_filename = ydl.prepare_filename(info_dict)
+                st.success(f"Видео успешно скачано: {video_filename}")
         except Exception as e:
             st.error(f"Произошла ошибка во время скачивания: {e}")
+            return
+
+        # Предоставить кнопку для загрузки видео
+        if video_filename:
+            # Прочитать файл как бинарные данные
+            with open(video_filename, "rb") as file:
+                video_data = file.read()
+                # Кнопка для загрузки файла
+                st.download_button(
+                    label="Скачать видео",
+                    data=video_data,
+                    file_name=os.path.basename(video_filename),
+                    mime="video/mp4"
+                )
 
 
 if __name__ == "__main__":
