@@ -1,65 +1,58 @@
-import streamlit as st
-import yt_dlp
-from pathlib import Path
 import os
+import yt_dlp
+import streamlit as st
+from pathlib import Path
+
+
+# Определение папки "Загрузки" для операционной системы
+def get_download_folder():
+    if os.name == "nt":  # Windows
+        return os.path.join(os.environ["USERPROFILE"], "Downloads")
+    else:  # macOS/Linux
+        return os.path.join(os.path.expanduser("~"), "Downloads")
+
 
 # Обновление прогресс-бара
-def update_progress_bar(progress, bar):
-    if 'total_bytes' in progress and 'downloaded_bytes' in progress:
-        total = progress['total_bytes']
-        downloaded = progress['downloaded_bytes']
-        percent = int(downloaded / total * 100)
-        bar.progress(percent / 100)  # Обновляем Streamlit прогресс-бар
+def update_progress_bar(d, progress_bar):
+    if d['status'] == 'downloading':
+        total = d.get('total_bytes') or d.get('total_bytes_estimate')
+        downloaded = d.get('downloaded_bytes', 0)
+        if total:
+            progress_bar.progress(min(downloaded / total, 1.0))
 
-# Проверка, установлен ли FFmpeg
-def is_ffmpeg_installed():
-    if os.system("ffmpeg -version") != 0:
-        st.warning("FFmpeg не установлен. Убедитесь, что он установлен для работы приложения.")
 
-# Streamlit интерфейс
+# Приложение Streamlit
 def main():
-    st.title("Сохранение видео с YouTube (с использованием yt-dlp)")
+    st.title("Скачиватель видео с YouTube")
 
-    # Проверяем наличие FFmpeg
-    is_ffmpeg_installed()
+    # Поле для ввода ссылки
+    video_url = st.text_input("Введите URL-адрес YouTube видео:", "")
 
-    # Поле для ввода ссылки на видео
-    video_url = st.text_input("Введите ссылку на YouTube", placeholder="Например, https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-
-    # Поле для ввода пути загрузки (вместо выбора через проводник указываем текстовый путь)
-    save_path = st.text_input("Укажите папку для сохранения видео (полный путь)", placeholder="Укажите полный путь к папке")
-
-    # Кнопка "Скачать"
+    # Кнопка для запуска скачивания
     if st.button("Скачать видео"):
-
-        # Проверяем введенные данные
-        if not video_url.strip() or not save_path.strip():
-            st.error("Введите ссылку на видео и укажите путь загрузки.")
+        if not video_url:
+            st.error("Пожалуйста, введите URL видео!")
             return
 
-        # Проверяем, существует ли путь
-        save_dir = Path(save_path)
-        if not save_dir.exists():
-            st.error(f"Указанный путь не существует: {save_path}")
-            return
+        # Путь к папке загрузок
+        save_path = Path(get_download_folder())
 
-        # Прогресс-бар
+        # Прогресс-бар и статус
         progress_bar = st.progress(0)
-        status_text = st.empty()
 
         # Настройки yt-dlp
         ydl_opts = {
-            'outtmpl': f'{save_path}/%(title)s.%(ext)s',  # Указывает путь сохранения
-            'format': 'bestvideo[height<=1080]+bestaudio/best',  # Загрузка видео в 1080p с аудио
-            'merge_output_format': 'mp4',  # Сохранение в MP4
+            'outtmpl': f'{save_path}/%(title)s.%(ext)s',
+            'format': 'bestvideo[height<=1080]+bestaudio/best',
+            'merge_output_format': 'mp4',
             'postprocessors': [{
                 'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4'  # Если требуется перекодирование
+                'preferedformat': 'mp4'
             }],
-            'progress_hooks': [lambda d: update_progress_bar(d, progress_bar)]  # Обновляем прогресс-бар Streamlit
+            'progress_hooks': [lambda d: update_progress_bar(d, progress_bar)]
         }
 
-        # Начинаем загрузку
+        # Загрузка видео
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 st.info("Начинается загрузка...")
@@ -69,6 +62,5 @@ def main():
             st.error(f"Произошла ошибка во время скачивания: {e}")
 
 
-# Запускаем Streamlit приложение
 if __name__ == "__main__":
     main()
