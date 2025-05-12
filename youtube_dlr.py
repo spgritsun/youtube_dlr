@@ -50,7 +50,7 @@ def main():
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': 'mp4'
             }],
-            'cookies': str(save_path / 'cookies.txt'),  # укажите ваш путь к файлу куки
+            'cookies-from-browser': 'firefox',  # Или 'firefox', если используете Firefox
             'progress_hooks': [lambda d: update_progress_bar(d, progress_bar)]
         }
 
